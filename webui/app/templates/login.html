@@ -1,0 +1,46 @@
+﻿{% extends "base.html" %}
+
+{% block title %}{{ app_name }} · Login{% endblock %}
+{% block head %}
+<script defer src="{{ url_for('static', path='/js/auth.js') }}"></script>
+{% endblock %}
+
+{% block body_class %}auth-body{% endblock %}
+
+{% block body %}
+<main class="auth-layout">
+    <section class="auth-copy fade-in">
+        <a class="brand" href="/">Campus AI</a>
+        <p class="eyebrow">AUTH FLOW</p>
+        <h1>Вход в интерфейс.</h1>
+        <p>
+            При загрузке страницы фронт проверяет cookie через backend.
+            Если access token устарел, mock `сервис авторизации` выпустит новый.
+            Если сессия невалидна, пользователь остается на этой странице.
+        </p>
+        <div class="panel auth-note">
+            <strong>Демо-режим</strong>
+            <p>Сейчас принимаются любые непустые `username` и `password`.</p>
+        </div>
+    </section>
+
+    <section class="panel auth-card fade-in">
+        <div class="auth-card-head">
+            <span class="badge">secure entry</span>
+            <h2>Авторизация</h2>
+        </div>
+        <form id="login-form" class="auth-form">
+            <label>
+                Username
+                <input type="text" name="username" placeholder="например, analyst01" autocomplete="username" required>
+            </label>
+            <label>
+                Password
+                <input type="password" name="password" placeholder="Введите пароль" autocomplete="current-password" required>
+            </label>
+            <button class="button" type="submit">Войти</button>
+            <p id="login-message" class="form-message" aria-live="polite"></p>
+        </form>
+    </section>
+</main>
+{% endblock %}

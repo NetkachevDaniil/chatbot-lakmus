@@ -1,0 +1,88 @@
+﻿{% extends "base.html" %}
+
+{% block title %}{{ app_name }} · Landing{% endblock %}
+
+{% block body %}
+<header class="topbar">
+    <a class="brand" href="/">Campus AI</a>
+    <nav class="topbar-nav">
+        <a href="#capabilities">Возможности</a>
+        <a href="#flow">Сценарий</a>
+        {% if session %}
+        <a class="button button-ghost" href="/workspace">Открыть рабочую область</a>
+        {% else %}
+        <a class="button button-ghost" href="/login">Войти</a>
+        {% endif %}
+    </nav>
+</header>
+
+<main class="landing">
+    <section class="hero fade-in">
+        <div class="hero-copy">
+            <p class="eyebrow">WEB UI PROTOTYPE</p>
+            <h1>Интерфейс для файла, prompt и ответа от внешних сервисов.</h1>
+            <p class="hero-text">
+                Лендинг, авторизация, чат-подобная рабочая область и история запросов в одном минималистичном интерфейсе.
+                Сервер рендерит страницы, а точки интеграции с авторизацией, `сервисом а` и `сервисом б` уже выделены.
+            </p>
+            <div class="hero-actions">
+                {% if session %}
+                <a class="button" href="/workspace">Перейти в чат</a>
+                {% else %}
+                <a class="button" href="/login">Перейти к авторизации</a>
+                {% endif %}
+                <a class="button button-ghost" href="#flow">Как это работает</a>
+            </div>
+        </div>
+        <div class="hero-card panel">
+            <span class="badge">mock pipeline</span>
+            <ol class="flow-list">
+                <li>Пользователь проходит вход и получает cookie с токенами.</li>
+                <li>На рабочей странице загружает файл и пишет prompt.</li>
+                <li>UI отправляет запрос в `сервис а`.</li>
+                <li>Ожидает JSON-ответ от `сервиса б` через long polling или websocket.</li>
+                <li>История диалогов остается доступной в sidebar и на отдельной странице.</li>
+            </ol>
+        </div>
+    </section>
+
+    <section class="feature-grid" id="capabilities">
+        <article class="panel feature-card fade-in">
+            <p class="feature-index">01</p>
+            <h2>Авторизация</h2>
+            <p>Восстановление сессии по cookie, обновление access token через refresh token и редирект на вход при невалидной сессии.</p>
+        </article>
+        <article class="panel feature-card fade-in">
+            <p class="feature-index">02</p>
+            <h2>Рабочая область</h2>
+            <p>Чатовый интерфейс с историей слева, окном переписки справа, прикреплением файла и отправкой prompt.</p>
+        </article>
+        <article class="panel feature-card fade-in">
+            <p class="feature-index">03</p>
+            <h2>История</h2>
+            <p>Отдельная страница со всеми диалогами и быстрым переходом к нужному чату без лишней навигации.</p>
+        </article>
+    </section>
+
+    <section class="panel flow-section fade-in" id="flow">
+        <div>
+            <p class="eyebrow">INTEGRATION READY</p>
+            <h2>Подмена mock-сервисов на реальные не требует переписывать интерфейс.</h2>
+        </div>
+        <div class="service-grid">
+            <div>
+                <span class="service-label">Авторизация</span>
+                <p>{{ service_endpoints.auth }}</p>
+            </div>
+            <div>
+                <span class="service-label">Сервис A</span>
+                <p>{{ service_endpoints.service_a }}</p>
+            </div>
+            <div>
+                <span class="service-label">Сервис B</span>
+                <p>{{ service_endpoints.service_b }}</p>
+            </div>
+        </div>
+    </section>
+</main>
+{% endblock %}

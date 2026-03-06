@@ -1,0 +1,47 @@
+﻿{% extends "base.html" %}
+
+{% block title %}{{ app_name }} · History{% endblock %}
+
+{% block body %}
+<header class="topbar">
+    <a class="brand" href="/">Campus AI</a>
+    <nav class="topbar-nav">
+        <a href="/workspace">Рабочая область</a>
+        <a href="/history">История</a>
+    </nav>
+</header>
+
+<main class="history-page fade-in">
+    <section class="history-head">
+        <div>
+            <p class="eyebrow">ARCHIVE</p>
+            <h1>История запросов</h1>
+        </div>
+        <a class="button" href="/workspace">Вернуться к диалогу</a>
+    </section>
+
+    <section class="history-grid">
+        {% for chat in chats %}
+        <article class="panel history-card">
+            <div class="history-card-head">
+                <h2>{{ chat.title }}</h2>
+                <span class="badge badge-muted">{{ chat.messages|length }} msg</span>
+            </div>
+            <p class="history-meta">Обновлен: {{ chat.updated_at.strftime("%d.%m.%Y %H:%M") }}</p>
+            {% if chat.messages %}
+            <p class="history-preview">{{ chat.messages[-1].content }}</p>
+            {% else %}
+            <p class="history-preview">Сообщений пока нет.</p>
+            {% endif %}
+            <a class="history-link" href="/workspace?chat={{ chat.id }}">Открыть чат</a>
+        </article>
+        {% else %}
+        <article class="panel empty-state">
+            <h2>История пока пуста</h2>
+            <p>Создайте первый чат в рабочей области, и он появится здесь автоматически.</p>
+            <a class="button" href="/workspace">Создать чат</a>
+        </article>
+        {% endfor %}
+    </section>
+</main>
+{% endblock %}
