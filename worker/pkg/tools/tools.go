@@ -1,8 +1,10 @@
 package tools
 
 import (
-	"example.com/bot_worker/pkg/models"
+	"fmt"
+	"io"
 	"log/slog"
+	"net/http"
 	"os"
 	"runtime"
 	"strconv"
@@ -19,24 +21,6 @@ func GetEnv(key string, defaultValue string) string {
 	return defaultValue
 }
 
-func GetEnvAsBool(key string, defaultValue bool) bool {
-	if valueStr := GetEnv(key, ""); valueStr != "" {
-		if value, err := strconv.ParseBool(valueStr); err == nil {
-			return value
-		}
-	}
-	return defaultValue
-}
-
-func GetEnvAsInt(key string, defaultValue int) int {
-	if valueStr := GetEnv(key, ""); valueStr != "" {
-		if value, err := strconv.Atoi(valueStr); err == nil {
-			return value
-		}
-	}
-	return defaultValue
-}
-
 // GetPlace - функция для получения места вызова какой-то другой функции
 func GetPlace() string {
 	_, file, line, _ := runtime.Caller(1)
@@ -44,23 +28,6 @@ func GetPlace() string {
 	StartFile := split[len(split)-1]
 	place := StartFile + ":" + strconv.Itoa(line)
 	return place
-}
-
-var TimeFormat = time.Now().Format("02.01.2006 15:04:05")
-
-func CreateLogStruct(service, level, category, title, message, place string) *models.Log {
-	return &models.Log{
-		Service:  service,
-		Level:    level,
-		Category: category,
-		Title:    title,
-		Message:  message,
-		Place:    place,
-	}
-}
-
-func ErrorIsNotNil(err error) bool {
-	return err != nil
 }
 
 func SlogLevelByString(level string) slog.Level {
@@ -76,4 +43,35 @@ func SlogLevelByString(level string) slog.Level {
 	default:
 		return slog.LevelDebug
 	}
+}
+
+func DownloadFile(url string) ([]byte, error) {
+	client := &http.Client{
+		Timeout: 30 * time.Second,
+	}
+
+	resp, err := client.Get(url)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		_ = resp.Body.Close()
+	}()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("HTTP ошибка: %d", resp.StatusCode)
+	}
+
+	limitReader := io.LimitReader(resp.Body, 50*1024*1024)
+
+	data, err := io.ReadAll(limitReader)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(data) == 0 {
+		return nil, fmt.Errorf("скачанный файл пуст")
+	}
+
+	return data, nil
 }

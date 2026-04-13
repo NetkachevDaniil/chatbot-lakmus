@@ -1,17 +1,22 @@
 package config
 
 import (
+	"example.com/bot_worker/pkg/tools"
 	"fmt"
 	"go.uber.org/multierr"
 	"gopkg.in/yaml.v3"
+	"log"
 	"os"
 	"strings"
 )
 
-const configPath = "./pkg/config/config.yaml"
+const DefaultConfigPath = "./pkg/config/config.yaml"
 
 type Configuration struct {
-	AiAPIKey string `yaml:"ai_api_key"`
+	AIApiKey             string `yaml:"ai_api_key"`
+	AIEndpoint           string `yaml:"ai_endpoint"`
+	AIModel              string `yaml:"ai_model"`
+	AIResponseTimeoutSec int    `yaml:"ai_response_timeout_sec"`
 
 	KafkaBrokers          []string `yaml:"kafka_brokers"`
 	KafkaConsumerTopics   []string `yaml:"kafka_consumer_topics"`
@@ -24,16 +29,16 @@ type Configuration struct {
 	LogKafkaTopics []string `yaml:"log_kafka_topics"`
 
 	LogLevel string `yaml:"log_level"`
-
-	PGUser     string `yaml:"pg_user"`
-	PGPassword string `yaml:"pg_password"`
-	PGHost     string `yaml:"pg_host"`
-	PGPort     int    `yaml:"pg_port"`
-	PGDatabase string `yaml:"pg_database"`
 }
 
 func NewConfig() (*Configuration, error) {
 	var config Configuration
+
+	configPath := tools.GetEnv("WORKER_CONFIG_PATH", DefaultConfigPath)
+	if configPath == DefaultConfigPath {
+		log.Println("CONFIG_PATH not found in environment variables")
+		log.Println("CONFIG_PATH set to default value: ./pkg/config/config.yaml")
+	}
 
 	data, err := os.ReadFile(configPath)
 	if err != nil {
@@ -52,15 +57,14 @@ func NewConfig() (*Configuration, error) {
 func (c *Configuration) Validate() error {
 	var errors error
 
-	if c.AiAPIKey == "" {
-		errors = multierr.Append(errors, fmt.Errorf("missing 'ai_api_key' field"))
+	if c.AIEndpoint == "" {
+		errors = multierr.Append(errors, fmt.Errorf("missing 'ai_endpoint' field"))
+	}
+	if c.AIModel == "" {
+		errors = multierr.Append(errors, fmt.Errorf("missing 'ai_model' field"))
 	}
 
 	if err := c.validateKafka(); err != nil {
-		errors = multierr.Append(errors, err)
-	}
-
-	if err := c.validatePostgres(); err != nil {
 		errors = multierr.Append(errors, err)
 	}
 
@@ -109,29 +113,6 @@ func (c *Configuration) validateKafka() error {
 		if strings.TrimSpace(topic) == "" {
 			errors = multierr.Append(errors, fmt.Errorf("missing 'log_kafka_topics' field %d", i))
 		}
-	}
-
-	return errors
-}
-
-func (c *Configuration) validatePostgres() error {
-	var errors error
-
-	if c.PGUser == "" {
-		errors = multierr.Append(errors, fmt.Errorf("missing 'pg_user' field"))
-	}
-
-	if c.PGPassword == "" {
-		errors = multierr.Append(errors, fmt.Errorf("missing 'pg_password' field"))
-	}
-	if c.PGHost == "" {
-		errors = multierr.Append(errors, fmt.Errorf("missing 'pg_host' field"))
-	}
-	if c.PGPort <= 0 || c.PGPort > 65535 {
-		errors = multierr.Append(errors, fmt.Errorf("invalid value for 'pg_port' field"))
-	}
-	if c.PGDatabase == "" {
-		errors = multierr.Append(errors, fmt.Errorf("missing 'pg_database' field"))
 	}
 
 	return errors

@@ -3,7 +3,7 @@ package kafk
 import (
 	"context"
 	"encoding/json"
-	"example.com/bot_worker/internal/service"
+	"example.com/bot_worker/internal/processor"
 	"example.com/bot_worker/pkg/config"
 	"example.com/bot_worker/pkg/models"
 	"example.com/bot_worker/pkg/tools"
@@ -16,32 +16,34 @@ import (
 )
 
 type KafkaConsumer struct {
+	proc *processor.Processor
+
+	topic   []string
+	brokers []string
+
 	consumer sarama.ConsumerGroup
-	topic    []string
 	producer *KafkaProducer
-	running  bool
-	brokers  []string
-	mu       *sync.Mutex
-	wg       *sync.WaitGroup
-	ctx      context.Context
-	cancel   context.CancelFunc
-	serv     service.ServiceInterface
 	handler  *ConsumerGroupHandler
-	logger   *slog.Logger
-	logs     chan *models.Log
+
+	running bool
+	mu      *sync.Mutex
+	wg      *sync.WaitGroup
+	ctx     context.Context
+	cancel  context.CancelFunc
+
+	logger *slog.Logger
 }
 
 // ConsumerGroupHandler для групп, реализует интерфейс sarama.ConsumerGroupHandler
 type ConsumerGroupHandler struct {
-	serv     service.ServiceInterface
+	proc     *processor.Processor
 	producer *KafkaProducer
 	consumer *KafkaConsumer
 	logger   *slog.Logger
-	logs     chan *models.Log
 }
 
 func NewKafkaConsumer(ctx context.Context, brokers []string, producer *KafkaProducer,
-	serv service.ServiceInterface, logger *slog.Logger, logs chan *models.Log) (*KafkaConsumer, error) {
+	proc *processor.Processor, logger *slog.Logger) (*KafkaConsumer, error) {
 
 	var cfg = ctx.Value("config").(*config.Configuration)
 
@@ -72,17 +74,15 @@ func NewKafkaConsumer(ctx context.Context, brokers []string, producer *KafkaProd
 		wg:       new(sync.WaitGroup),
 		ctx:      ctx,
 		cancel:   cancel,
-		serv:     serv,
-		logs:     logs,
+		proc:     proc,
 		logger:   logger,
 	}
 
 	kc.handler = &ConsumerGroupHandler{
-		serv:     serv,
+		proc:     proc,
 		producer: producer,
 		consumer: kc,
 		logger:   logger,
-		logs:     logs,
 	}
 
 	return kc, nil
@@ -114,16 +114,11 @@ func (rc *KafkaConsumer) consume() {
 		default:
 		}
 
-		// Запускаем consumer group
 		err := rc.consumer.Consume(rc.ctx, rc.topic, rc.handler)
 		if err != nil {
-			rc.logger.Warn(tools.ServiceName,
-				"consume error", err,
+			rc.logger.Warn("consumer",
+				"error", err,
 				"place", tools.GetPlace())
-			go func() {
-				rc.logs <- tools.CreateLogStruct(tools.ServiceName, "warning", "kafka consumer",
-					"consume", err.Error(), tools.GetPlace())
-			}()
 
 			select {
 			case <-rc.ctx.Done():
@@ -155,22 +150,16 @@ func (rc *KafkaConsumer) Stop() error {
 	rc.wg.Wait()
 
 	if err := rc.consumer.Close(); err != nil {
-		rc.logger.Error(tools.ServiceName,
-			"consumer close error", err,
+		rc.logger.Error("consumer close",
+			"error", err,
 			"place", tools.GetPlace())
-		go func() {
-			rc.logs <- tools.CreateLogStruct(tools.ServiceName, "error", "kafka consumer", "close",
-				err.Error(), tools.GetPlace())
-		}()
+
 		return fmt.Errorf("kafka consumer close error: %w", err)
 	}
 	rc.logger.Info(tools.ServiceName,
 		"consumer stop", "success",
 		"place", tools.GetPlace())
-	go func() {
-		rc.logs <- tools.CreateLogStruct(tools.ServiceName, "info", "kafka consumer",
-			"stop", "success", tools.GetPlace())
-	}()
+
 	return nil
 }
 
@@ -194,23 +183,15 @@ func (h *ConsumerGroupHandler) ConsumeClaim(session sarama.ConsumerGroupSession,
 
 // processMessage обрабатывает одно сообщение
 func (h *ConsumerGroupHandler) processMessage(session sarama.ConsumerGroupSession, msg *sarama.ConsumerMessage) {
-	h.logger.Info(tools.ServiceName,
-		"pending request", string(msg.Value),
+	h.logger.Info("consumer",
+		"pending request key", msg.Key,
 		"place", tools.GetPlace())
-	go func() {
-		h.logs <- tools.CreateLogStruct(tools.ServiceName, "info", "kafka consumer",
-			"pending message", string(msg.Value), tools.GetPlace())
-	}()
 
 	var req models.Request
 	if err := json.Unmarshal(msg.Value, &req); err != nil {
-		h.logger.Error(tools.ServiceName,
-			"unmarshal error", err,
+		h.logger.Error("unmarshal message failed",
+			"error", err,
 			"place", tools.GetPlace())
-		go func() {
-			h.logs <- tools.CreateLogStruct(tools.ServiceName, "error", "kafka consumer",
-				"unmarshal", err.Error(), tools.GetPlace())
-		}()
 
 		h.sendErrorResponse("invalid format json", msg)
 		session.MarkMessage(msg, "")
@@ -220,29 +201,20 @@ func (h *ConsumerGroupHandler) processMessage(session sarama.ConsumerGroupSessio
 	// Обрабатываем запрос
 	response, err := h.handleRequest(req)
 	if err != nil {
-		h.logger.Warn(tools.ServiceName,
-			"handle request error", err,
+		h.logger.Warn("handle request failed",
+			"error", err,
 			"place", tools.GetPlace())
 
-		go func() {
-			h.logs <- tools.CreateLogStruct(tools.ServiceName, "warning", "kafka consumer",
-				"handleRequest", err.Error(), tools.GetPlace())
-		}()
-		// return не делаем так как внутри success на false меняется и в кафку точно отправить надо это
+		// даже если ошибка, мы выдаем, потом сервис б в кафку обратно пришлет
 	}
-
 	// Отправляем ответ
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	if err = h.producer.SendResponse(ctx, response); err != nil {
-		h.logger.Error(tools.ServiceName,
-			"send response error", err,
+		h.logger.Error("send response failed",
+			"error", err,
 			"place", tools.GetPlace())
-		go func() {
-			h.logs <- tools.CreateLogStruct(tools.ServiceName, "error", "kafka consumer", "send response",
-				err.Error(), tools.GetPlace())
-		}()
 
 		// Не коммитим, чтобы повторить позже
 		return
@@ -250,53 +222,60 @@ func (h *ConsumerGroupHandler) processMessage(session sarama.ConsumerGroupSessio
 
 	// Коммитим сообщение после успешной обработки
 	session.MarkMessage(msg, "")
-	h.logger.Info(tools.ServiceName,
-		"process message", "success",
+	h.logger.Info("message sent",
+		"status", "success",
 		"place", tools.GetPlace())
 
-	go func() {
-		data, _ := json.Marshal(response)
-		h.logs <- tools.CreateLogStruct(tools.ServiceName, "info", "kafka consumer", "send message",
-			string(data), tools.GetPlace())
-	}()
 }
 
 // handleRequest вызывает сервис для обработки запроса
 func (h *ConsumerGroupHandler) handleRequest(req models.Request) (models.Response, error) {
 	var resp models.Response
-	resp.TaskID = req.TaskID
+	resp.Request = req
 	resp.UserID = req.UserID
+	resp.Attempt = req.Attempt
+	resp.ChatID = req.ChatID
 
-	data, err := h.serv.Response(req.FileURL, req.Prompt)
-	if err != nil {
-		resp.Text = err.Error()
-		resp.Success = false
-		return resp, err
-	}
-	resp.Text = data
+	response, metrics, err := h.proc.Process(&models.ProcessRequest{
+		FilePath:   req.FileURL,
+		Prompt:     req.Prompt,
+		FileFormat: req.FileFormat,
+	})
+	resp.Metrics = metrics
 	resp.Success = true
+
+	if err != nil {
+		resp.Success = false
+		resp.Error = err.Error()
+	}
+	if response == nil {
+		resp.Explanation = ""
+		resp.Diagram = ""
+		return resp, nil
+	}
+	resp.Explanation = response.Explanation
+	resp.Diagram = response.Diagram
 	return resp, nil
 }
 
 // sendErrorResponse отправляет ответ с ошибкой
 func (h *ConsumerGroupHandler) sendErrorResponse(message string, _ *sarama.ConsumerMessage) {
 	response := models.Response{
-		TaskID:  "unknown",
-		UserID:  "unknown",
-		Success: false,
-		Text:    message,
+		Request:     models.Request{},
+		UserID:      "",
+		Success:     false,
+		Error:       message,
+		Explanation: "",
+		Diagram:     "",
+		Attempt:     -1,
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	if err := h.producer.SendResponse(ctx, response); err != nil {
-		h.logger.Warn(tools.ServiceName,
-			"send response error", err,
+		h.logger.Warn("send response failed",
+			"error", err,
 			"place", tools.GetPlace())
-		go func() {
-			h.logs <- tools.CreateLogStruct(tools.ServiceName, "warning", "kafka consumer",
-				"send response", err.Error(), tools.GetPlace())
-		}()
 	}
 }

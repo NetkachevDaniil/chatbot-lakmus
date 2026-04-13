@@ -20,7 +20,6 @@ type Client struct {
 }
 
 func NewClient(ctx context.Context) (*Client, error) {
-
 	var cfg = ctx.Value("config").(*config.Configuration)
 
 	producerConfig := sarama.NewConfig()
@@ -54,14 +53,16 @@ func NewClient(ctx context.Context) (*Client, error) {
 }
 
 func (c *Client) SendRequest() (<-chan models.Response, error) {
-	reqID := uuid.New().String()
 	userID := uuid.New().String()
+	chatID := uuid.New().String()
 
 	req := models.Request{
-		TaskID:  reqID,
-		UserID:  userID,
-		FileURL: "http://192.168.3.92:9001/api/v1/download-shared-object/aHR0cDovLzEyNy4wLjAuMTo5MDAwL2JvdHdvcmtlcmRhdGEvJUQwJTlEJUQwJUIwJUQwJUIxJUQwJUI1JUQwJUIxJUQwJUI4JUQwJUJELTExJTIwJUQwJTlFJUQxJTg2JUQwJUI1JUQwJUJEJTIwJUQwJUJEJUQwJUI1JUQwJUI0JUQwJUI1JUQwJUJCJTIwMjAyNS0yNiUyMCVEMCU5RSVEMSU4MSVEMCVCNSVEMCVCRCVEMSU4QyUyMCUyODIlMjklMjAlMjgxJTI5Lnhsc3g_WC1BbXotQWxnb3JpdGhtPUFXUzQtSE1BQy1TSEEyNTYmWC1BbXotQ3JlZGVudGlhbD1CMlMzWTJFVjJCOUhQRTAwSThEWSUyRjIwMjYwMjI0JTJGdXMtZWFzdC0xJTJGczMlMkZhd3M0X3JlcXVlc3QmWC1BbXotRGF0ZT0yMDI2MDIyNFQxNzU0NDNaJlgtQW16LUV4cGlyZXM9NDMyMDAmWC1BbXotU2VjdXJpdHktVG9rZW49ZXlKaGJHY2lPaUpJVXpVeE1pSXNJblI1Y0NJNklrcFhWQ0o5LmV5SmhZMk5sYzNOTFpYa2lPaUpDTWxNeldUSkZWakpDT1VoUVJUQXdTVGhFV1NJc0ltVjRjQ0k2TVRjM01UazVPRFkyT1N3aWNHRnlaVzUwSWpvaWRYTmxjaUo5LllPTE5wbWREZFRZWTFvbVgtcW45MVlxcGJRS0dhNWxuMXFrelQzQUtLc0xhNG45UHhVSlRvX1ZtNi1sNVF1TE51VFBNYlVFSEl4WmVPTFBoRW93aDZRJlgtQW16LVNpZ25lZEhlYWRlcnM9aG9zdCZ2ZXJzaW9uSWQ9bnVsbCZYLUFtei1TaWduYXR1cmU9YTFkNWFjOTFjZTg1MjEwNTU0ODNlNWFjODVlNzY5MzFmZGM2YTYxNGUxODJiOWU3YzBhYWFmZDMxODE0NjljZA",
-		Prompt:  "Как учится Голик",
+		UserID:     userID,
+		ChatID:     chatID,
+		FileFormat: "excel",
+		FileURL:    "http://192.168.3.92:9001/api/v1/download-shared-object/aHR0cDovLzEyNy4wLjAuMTo5MDAwL3Rlc3QvbmFiZWJhJTIwJTI4MSUyOS54bHN4P1gtQW16LUFsZ29yaXRobT1BV1M0LUhNQUMtU0hBMjU2JlgtQW16LUNyZWRlbnRpYWw9RFhCWkNRTURJUUxON0xJRjlMNFMlMkYyMDI2MDQxMyUyRnVzLWVhc3QtMSUyRnMzJTJGYXdzNF9yZXF1ZXN0JlgtQW16LURhdGU9MjAyNjA0MTNUMTEyMjU5WiZYLUFtei1FeHBpcmVzPTQzMjAwJlgtQW16LVNlY3VyaXR5LVRva2VuPWV5SmhiR2NpT2lKSVV6VXhNaUlzSW5SNWNDSTZJa3BYVkNKOS5leUpoWTJObGMzTkxaWGtpT2lKRVdFSmFRMUZOUkVsUlRFNDNURWxHT1V3MFV5SXNJbVY0Y0NJNk1UYzNOakV5TWpVM05Td2ljR0Z5Wlc1MElqb2lkWE5sY2lKOS52bzhSTFVISk1YNDVDZ1ZDQVZCZ1NWRmlfMlVHMTlGT0FFTHhPVjR4cjRBMm04c3NmRzI2VXFSa2hNZk9vQkpiTU9UTW5vMEZpUUFlcDBtV1hLdWYwQSZYLUFtei1TaWduZWRIZWFkZXJzPWhvc3QmdmVyc2lvbklkPW51bGwmWC1BbXotU2lnbmF0dXJlPTUzNDliYTc0NjgxNzRlMzE1ZTY1OTNlODkxYjhjNmQxYTNlZDkzYzRkYmJmYzJjMjkzZGI4OTY4NDNhZTEzYjA",
+		Prompt:     "Какой балл у Голика",
+		Attempt:    0,
 	}
 
 	jsonData, err := json.Marshal(req)
@@ -70,11 +71,11 @@ func (c *Client) SendRequest() (<-chan models.Response, error) {
 	}
 	respChan := make(chan models.Response, 1)
 
-	go c.waitForResponse(reqID, respChan)
+	go c.waitForResponse(userID, respChan)
 
 	msg := &sarama.ProducerMessage{
 		Topic: "request",
-		Key:   sarama.StringEncoder(reqID),
+		Key:   sarama.StringEncoder(userID),
 		Value: sarama.ByteEncoder(jsonData),
 		Headers: []sarama.RecordHeader{
 			{Key: []byte("timestamp"), Value: []byte(time.Now().String())},
@@ -88,12 +89,12 @@ func (c *Client) SendRequest() (<-chan models.Response, error) {
 		return nil, fmt.Errorf("failed to send request: %w", err)
 	}
 
-	log.Printf("Request sent: %s, partition: %d, offset: %d", reqID, partition, offset)
+	log.Printf("Request sent: %s, partition: %d, offset: %d", userID, partition, offset)
 
 	return respChan, nil
 }
 
-func (c *Client) waitForResponse(reqID string, respChan chan models.Response) {
+func (c *Client) waitForResponse(userID string, respChan chan models.Response) {
 	defer close(respChan)
 
 	partitionConsumer, err := c.consumer.ConsumePartition("response", 0, sarama.OffsetNewest)
@@ -103,34 +104,34 @@ func (c *Client) waitForResponse(reqID string, respChan chan models.Response) {
 	}
 	defer func() { _ = partitionConsumer.Close() }()
 
-	log.Printf("Waiting for response for request %s", reqID)
+	log.Printf("Waiting for response for request %s", userID)
 
 	timeout := time.After(30 * time.Second)
 
 	for {
 		select {
 		case <-c.ctx.Done():
-			log.Printf("Context cancelled while waiting for response %s", reqID)
+			log.Printf("Context cancelled while waiting for response %s", userID)
 			return
 
 		case <-timeout:
-			log.Printf("Timeout waiting for response %s", reqID)
+			log.Printf("Timeout waiting for response %s", userID)
 			return
 
 		case msg := <-partitionConsumer.Messages():
 
 			var resp models.Response
-			if err := json.Unmarshal(msg.Value, &resp); err != nil {
+			if err = json.Unmarshal(msg.Value, &resp); err != nil {
 				log.Printf("Failed to unmarshal response: %v", err)
 				continue
 			}
 
-			if resp.TaskID == reqID {
-				log.Printf("Received response for request %s", reqID)
+			if resp.UserID == userID {
+				log.Printf("Received response for request %s", userID)
 				respChan <- resp
 				return
 			}
-		case err := <-partitionConsumer.Errors():
+		case err = <-partitionConsumer.Errors():
 			log.Printf("Consumer error: %v", err)
 		}
 	}
@@ -168,7 +169,7 @@ func TestClient(ctx context.Context) {
 		select {
 		case resp := <-respChan:
 			fmt.Printf("Response received: %+v\n", resp)
-		case <-time.After(5 * time.Second):
+		case <-time.After(30 * time.Second):
 			fmt.Println("Timeout waiting for response")
 		}
 	}()

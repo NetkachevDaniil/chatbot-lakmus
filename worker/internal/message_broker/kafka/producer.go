@@ -55,7 +55,7 @@ func (rp *KafkaProducer) SendResponse(ctx context.Context, resp models.Response)
 
 	msg := &sarama.ProducerMessage{
 		Topic:     rp.topic,
-		Key:       sarama.StringEncoder(resp.TaskID),
+		Key:       sarama.StringEncoder(resp.UserID),
 		Value:     sarama.ByteEncoder(data),
 		Timestamp: time.Now(),
 		Headers: []sarama.RecordHeader{
@@ -71,45 +71,8 @@ func (rp *KafkaProducer) SendResponse(ctx context.Context, resp models.Response)
 			done <- fmt.Errorf("ошибка отправки: %w", err)
 			return
 		}
-		slog.Info(tools.ServiceName, "category", "kafka producer", "title", "send response", "message", resp.TaskID,
+		slog.Info("kafka producer send message", "partition", partition, "offset", offset,
 			"place", tools.GetPlace())
-		_ = partition
-		_ = offset
-		done <- nil
-	}()
-
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	case err = <-done:
-		return err
-	}
-}
-
-func (rp *KafkaProducer) SendLogToKafka(ctx context.Context, logTopic string, log *models.Log) error {
-	data, err := json.Marshal(log)
-	if err != nil {
-		return fmt.Errorf("ошибка маршалинга: %w", err)
-	}
-
-	msg := &sarama.ProducerMessage{
-		Topic:     logTopic,
-		Key:       sarama.StringEncoder(log.Service),
-		Value:     sarama.ByteEncoder(data),
-		Timestamp: time.Now(),
-		Headers: []sarama.RecordHeader{
-			{Key: []byte("timestamp"), Value: []byte(time.Now().String())},
-			{Key: []byte("success"), Value: []byte("true")},
-		},
-	}
-
-	done := make(chan error, 1)
-	go func() {
-		_, _, err := rp.producer.SendMessage(msg)
-		if err != nil {
-			done <- fmt.Errorf("ошибка отправки: %w", err)
-			return
-		}
 		done <- nil
 	}()
 
