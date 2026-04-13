@@ -4,13 +4,14 @@ import (
 	"context"
 	"example.com/bot_worker/internal/app"
 	"example.com/bot_worker/pkg/config"
+	"example.com/bot_worker/pkg/logger"
 	"example.com/bot_worker/pkg/tools"
 	"log"
-	"log/slog"
-	"os"
 )
 
 func main() {
+	ctx := context.Background()
+
 	conf, err := config.NewConfig()
 	if err != nil {
 		log.Fatal(err)
@@ -19,19 +20,19 @@ func main() {
 		log.Fatal(err)
 	}
 
-	ctxWithConf := context.WithValue(context.Background(), "config", conf)
-	ctx, cancel := context.WithCancel(ctxWithConf)
+	logFile, logs := logger.NewSlogLogger(conf.LogLevel)
+	defer func() {
+		_ = logFile.Close()
+	}()
 
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
-		Level: tools.SlogLevelByString(conf.LogLevel),
-	}))
+	ctx = context.WithValue(ctx, "config", conf)
+	ctx = context.WithValue(ctx, "logger", logs)
 
-	application, err := app.NewApp(ctx, cancel, logger)
+	application, err := app.NewApp(ctx)
 	if err != nil {
-		logger.Error("Failed to create application", "error", err)
+		logs.Error("Failed to create application", "error", err)
 		return
 	}
-
 	/*
 		go func() {
 			time.Sleep(3 * time.Second)
@@ -39,9 +40,9 @@ func main() {
 		}()
 	*/
 	if err = application.Start(); err != nil {
-		logger.Error("Failed to start application", "error", err)
+		logs.Error("Failed to start application", "error", err)
 		return
 	}
-	logger.Info("server stopped successfully",
+	logs.Info("server stopped successfully",
 		"place", tools.GetPlace())
 }

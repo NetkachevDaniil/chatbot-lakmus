@@ -1,17 +1,12 @@
 package service
 
 import (
-	"example.com/bot_worker/internal/api"
-	"example.com/bot_worker/internal/service/service_ai"
-	"io"
+	"github.com/xuri/excelize/v2"
 )
 
-type ServiceInterface interface {
-	DownloadFile(string) (io.Reader, error)
-	AIRequest(string) (string, error)
-	Response(string, string) (string, error) // url string, prompt string
-}
-
-func NewService(api *api.AiActions) ServiceInterface {
-	return service_ai.NewServiceMinioAI(api)
+type Analyzer interface {
+	Name() string
+	Analyze(f *excelize.File, sheetName string, params map[string]interface{}) (map[string]interface{}, error)
+	RequiredColumns() []string
+	ValidateParams(params map[string]interface{}) error
 }
