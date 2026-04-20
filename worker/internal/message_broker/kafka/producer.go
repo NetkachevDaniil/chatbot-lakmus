@@ -26,7 +26,6 @@ func NewKafkaProducer(ctx context.Context, brokers []string) (*KafkaProducer, er
 	configSarama.Producer.RequiredAcks = sarama.WaitForAll
 	configSarama.Producer.Retry.Max = 10
 	configSarama.Producer.Retry.Backoff = 100 * time.Millisecond
-	configSarama.Producer.Compression = sarama.CompressionSnappy
 	configSarama.Producer.Flush.Bytes = 16384
 	configSarama.Consumer.MaxProcessingTime = 1 * time.Second
 	configSarama.Producer.Flush.Frequency = 5 * time.Millisecond
