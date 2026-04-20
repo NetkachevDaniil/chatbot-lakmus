@@ -17,7 +17,7 @@ func NewWorkAroundClient(client *Client) *WorkAroundClient {
 
 func (a *WorkAroundClient) WorkAround(prompt, fileFormat string, file []byte) (*models.AIResponse, error) {
 	switch fileFormat {
-	case parsing.ExcelFormat:
+	case parsing.ExcelFormat, parsing.ExcelFormat2, parsing.ExcelFormat3:
 		meta, err := excel.ReadDataFromBytes(file, fmt.Sprintf("file.%s", fileFormat), 0)
 		if err != nil {
 			return nil, err

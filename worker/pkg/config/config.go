@@ -10,7 +10,7 @@ import (
 	"strings"
 )
 
-const DefaultConfigPath = "./pkg/config/config.yaml"
+const DefaultConfigPath = "./config.yaml"
 
 type Configuration struct {
 	AIApiKey             string `yaml:"ai_api_key"`
@@ -26,8 +26,6 @@ type Configuration struct {
 	KafkaProducerTopics   []string `yaml:"kafka_producer_topics"`
 	KafkaProducerClientID string   `yaml:"kafka_producer_client_id"`
 
-	LogKafkaTopics []string `yaml:"log_kafka_topics"`
-
 	LogLevel string `yaml:"log_level"`
 }
 
@@ -37,20 +35,40 @@ func NewConfig() (*Configuration, error) {
 	configPath := tools.GetEnv("WORKER_CONFIG_PATH", DefaultConfigPath)
 	if configPath == DefaultConfigPath {
 		log.Println("CONFIG_PATH not found in environment variables")
-		log.Println("CONFIG_PATH set to default value: ./pkg/config/config.yaml")
+		log.Println("CONFIG_PATH set to default value: ./config.yaml")
 	}
 
 	data, err := os.ReadFile(configPath)
 	if err != nil {
-		return nil, err
+		log.Println("error reading config file: ", err)
+		log.Println("returning default configuration")
+		return setDefaults(), nil
 	}
 
 	err = yaml.Unmarshal(data, &config)
 	if err != nil {
-		return nil, err
+		log.Println("error unmarshal config file: ", err)
+		log.Println("returning default configuration")
+		return setDefaults(), nil
 	}
 
 	return &config, nil
+}
+
+func setDefaults() *Configuration {
+	return &Configuration{
+		AIApiKey:              "",
+		AIEndpoint:            "http://localhost:1234/v1/chat/completions",
+		AIModel:               "llama-3.2-3b-instruct",
+		AIResponseTimeoutSec:  60,
+		KafkaBrokers:          []string{"localhost:9092"},
+		KafkaConsumerTopics:   []string{"Request"},
+		KafkaConsumerClientID: "request-consumer-1",
+		KafkaConsumerGroup:    "request-consumer-group",
+		KafkaProducerTopics:   []string{"Response"},
+		KafkaProducerClientID: "response-producer-1",
+		LogLevel:              "info",
+	}
 }
 
 // Validate проверяет корректность конфигурации
@@ -107,12 +125,6 @@ func (c *Configuration) validateKafka() error {
 	}
 	if c.KafkaProducerClientID == "" {
 		errors = multierr.Append(errors, fmt.Errorf("missing 'kafka_producer_client_id' field"))
-	}
-
-	for i, topic := range c.LogKafkaTopics {
-		if strings.TrimSpace(topic) == "" {
-			errors = multierr.Append(errors, fmt.Errorf("missing 'log_kafka_topics' field %d", i))
-		}
 	}
 
 	return errors

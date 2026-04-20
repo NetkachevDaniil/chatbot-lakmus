@@ -33,12 +33,7 @@ func main() {
 		logs.Error("Failed to create application", "error", err)
 		return
 	}
-	/*
-		go func() {
-			time.Sleep(3 * time.Second)
-			kafk.TestClient(ctx)
-		}()
-	*/
+
 	if err = application.Start(); err != nil {
 		logs.Error("Failed to start application", "error", err)
 		return

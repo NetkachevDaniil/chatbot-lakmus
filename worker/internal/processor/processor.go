@@ -53,7 +53,7 @@ func (p *Processor) Process(req *models.ProcessRequest) (*models.AIResponse, *mo
 
 	// Выбираем как парсим, что парсим и получаем результат
 	switch req.FileFormat {
-	case parsing.ExcelFormat:
+	case parsing.ExcelFormat, parsing.ExcelFormat2, parsing.ExcelFormat3:
 		return p.ExcelProcess(metrics, file, req)
 	}
 

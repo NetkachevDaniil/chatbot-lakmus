@@ -1,0 +1,8 @@
+services:
+  worker:
+    build:
+      context: ./worker
+      dockerfile: Dockerfile
+    container_name: worker
+    volumes:
+      - './worker:/worker/data'
