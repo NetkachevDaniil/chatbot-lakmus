@@ -1,1 +1,2 @@
-﻿"""Service layer for mock integrations."""
+"""Service layer for mock integrations."""
+

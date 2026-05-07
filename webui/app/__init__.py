@@ -1,1 +1,2 @@
-﻿"""Web UI prototype package."""
+"""Web UI prototype package."""
+

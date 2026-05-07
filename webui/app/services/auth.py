@@ -1,6 +1,7 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 from dataclasses import dataclass
+
 from typing import Optional
 
 from ..models import AuthSession
@@ -11,7 +12,7 @@ from ..repository import InMemoryRepository
 class ServiceEndpoints:
     auth: str
     service_a: str
-    service_b: str
+    web_ui: str
 
 
 class MockAuthService:
@@ -37,5 +38,8 @@ class MockAuthService:
 
     async def logout(self, access_token: Optional[str], refresh_token: Optional[str]) -> None:
         self.repository.revoke_session(access_token, refresh_token)
+
+
+
 
 

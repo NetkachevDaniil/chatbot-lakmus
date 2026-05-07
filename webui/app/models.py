@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 from datetime import datetime
 from typing import Any, Literal, Optional
@@ -44,6 +44,17 @@ class Chat(BaseModel):
     messages: list[Message] = Field(default_factory=list)
 
 
+class ServiceResponse(BaseModel):
+    user_id: str
+    chat_id: str
+    success: bool
+    explanation: str
+    diagram: str = ""
+    attempt: int = 0
+    error: str = ""
+    received_at: Optional[datetime] = None
+
+
 class PendingRequest(BaseModel):
     id: str = Field(default_factory=lambda: new_id("req"))
     user_id: str
@@ -52,5 +63,26 @@ class PendingRequest(BaseModel):
     status: Literal["queued", "processing", "completed", "failed"] = "queued"
     created_at: datetime
     finished_at: Optional[datetime] = None
-    result: Optional[dict[str, Any]] = None
+    response: Optional[ServiceResponse] = None
+    meta: dict[str, Any] = Field(default_factory=dict)
 
+
+class VkTextAttachment(BaseModel):
+    name: str
+    ext: str
+    size: Optional[int] = None
+    url: Optional[str] = None
+    content: str = ""
+
+
+class VkInboundPayload(BaseModel):
+    platform: Literal["vk"] = "vk"
+    event_type: str = "message_new"
+    group_id: Optional[int] = None
+    user_id: str
+    peer_id: int
+    message_id: Optional[int] = None
+    conversation_message_id: Optional[int] = None
+    text: str = ""
+    text_attachment: Optional[VkTextAttachment] = None
+    received_at: Optional[datetime] = None

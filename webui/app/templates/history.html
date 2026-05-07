@@ -1,12 +1,17 @@
-﻿{% extends "base.html" %}
+{% extends "base.html" %}
 
-{% block title %}{{ app_name }} · History{% endblock %}
+{% block title %}Lakmus History{% endblock %}
 
 {% block body %}
 <header class="topbar">
-    <a class="brand" href="/">Campus AI</a>
+    <a class="brand brand-lockup" href="/">
+        <span class="brand-mark">
+            <img src="{{ url_for('static', path='/img/lakmus-avatar.svg') }}?v=lakmus-20260406-fix3" alt="Lakmus" width="20" height="20">
+        </span>
+        <span class="brand-wordmark">Lakmus</span>
+    </a>
     <nav class="topbar-nav">
-        <a href="/workspace">Рабочая область</a>
+        <a href="/workspace">Диалоги</a>
         <a href="/history">История</a>
     </nav>
 </header>
@@ -16,8 +21,9 @@
         <div>
             <p class="eyebrow">ARCHIVE</p>
             <h1>История запросов</h1>
+            <p class="history-intro">Все прошлые диалоги с Лакмусом собраны здесь и доступны для быстрого возврата.</p>
         </div>
-        <a class="button" href="/workspace">Вернуться к диалогу</a>
+        <a class="button" href="/workspace">Вернуться к диалогам</a>
     </section>
 
     <section class="history-grid">
@@ -38,7 +44,7 @@
         {% else %}
         <article class="panel empty-state">
             <h2>История пока пуста</h2>
-            <p>Создайте первый чат в рабочей области, и он появится здесь автоматически.</p>
+            <p>Создайте первый чат в разделе диалогов, и он появится здесь автоматически.</p>
             <a class="button" href="/workspace">Создать чат</a>
         </article>
         {% endfor %}

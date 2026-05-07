@@ -1,4 +1,4 @@
-﻿async function checkExistingSession() {
+async function checkExistingSession() {
   try {
     const response = await fetch("/api/auth/status", { credentials: "same-origin" });
     if (response.ok) {
@@ -30,7 +30,7 @@ async function handleLogin(event) {
     });
 
     if (!response.ok) {
-      const payload = await response.json();
+      const payload = await response.json().catch(() => ({}));
       throw new Error(payload.detail || "Не удалось войти");
     }
 

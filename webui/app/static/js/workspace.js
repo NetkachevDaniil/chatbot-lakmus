@@ -1,4 +1,4 @@
-﻿const state = {
+const state = {
   chats: [],
   activeChatId: null,
 };
@@ -19,6 +19,10 @@ function escapeHtml(text) {
     .replaceAll(">", "&gt;");
 }
 
+function formatMessageText(text) {
+  return escapeHtml(text).replaceAll("\n", "<br>");
+}
+
 function renderChats() {
   const list = document.getElementById("chat-list");
   const count = document.getElementById("chat-count");
@@ -26,17 +30,33 @@ function renderChats() {
   list.innerHTML = state.chats
     .map(
       (chat) => `
-        <button class="chat-list-item ${chat.id === state.activeChatId ? "active" : ""}" data-chat-id="${chat.id}" type="button">
-          <span class="chat-list-title">${escapeHtml(chat.title)}</span>
-          <span class="chat-list-time">${formatTime(chat.updated_at)}</span>
-        </button>
+        <article class="chat-list-item ${chat.id === state.activeChatId ? "active" : ""}" data-chat-id="${chat.id}">
+          <button class="chat-list-main" data-chat-open="${chat.id}" type="button">
+            <span class="chat-list-title">${escapeHtml(chat.title)}</span>
+            <span class="chat-list-time">${formatTime(chat.updated_at)}</span>
+          </button>
+          <button class="chat-delete-button" data-chat-delete="${chat.id}" type="button" aria-label="Удалить чат">
+            Удалить
+          </button>
+        </article>
       `,
     )
     .join("");
 
-  list.querySelectorAll("[data-chat-id]").forEach((button) => {
+  list.querySelectorAll("[data-chat-open]").forEach((button) => {
     button.addEventListener("click", () => {
-      loadChat(button.dataset.chatId);
+      loadChat(button.dataset.chatOpen);
+    });
+  });
+
+  list.querySelectorAll("[data-chat-delete]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const chatId = button.dataset.chatDelete;
+      const confirmed = window.confirm("Удалить этот чат из истории?");
+      if (!confirmed) {
+        return;
+      }
+      await deleteChat(chatId);
     });
   });
 }
@@ -50,6 +70,9 @@ function renderMessages(chat) {
       const responseJson = message.meta?.response_json
         ? `<pre class="json-block">${escapeHtml(JSON.stringify(message.meta.response_json, null, 2))}</pre>`
         : "";
+      const diagram = message.meta?.diagram
+        ? `<pre class="json-block">${escapeHtml(message.meta.diagram)}</pre>`
+        : "";
       const fileBadge = message.file_name
         ? `<span class="message-file">${escapeHtml(message.file_name)}</span>`
         : "";
@@ -61,13 +84,14 @@ function renderMessages(chat) {
       return `
         <article class="message ${message.role}">
           <div class="message-meta">
-            <span>${message.role === "user" ? "Вы" : "Ассистент"}</span>
+            <span>${message.role === "user" ? "Вы" : "Лакмус"}</span>
             <span>${formatTime(message.created_at)}</span>
           </div>
           <div class="message-body">
-            <p>${escapeHtml(message.content)}</p>
+            <p>${formatMessageText(message.content)}</p>
             ${fileBadge}
             ${statusBadge}
+            ${diagram}
             ${responseJson}
           </div>
         </article>
@@ -103,10 +127,14 @@ async function refreshChats(preferredChatId = null) {
 }
 
 async function loadChat(chatId) {
+  if (!chatId) {
+    return null;
+  }
   state.activeChatId = chatId;
   renderChats();
   const data = await fetchJson(`/api/chats/${chatId}`);
   renderMessages(data.chat);
+  return data.chat;
 }
 
 async function createChat() {
@@ -115,57 +143,52 @@ async function createChat() {
   await loadChat(data.chat.id);
 }
 
-async function pollRequest(requestId) {
+async function deleteChat(chatId) {
+  const statusNode = document.getElementById("composer-status");
+  statusNode.textContent = "Удаляем чат...";
+  const data = await fetchJson(`/api/chats/${chatId}`, { method: "DELETE" });
+  state.chats = data.remaining;
+
+  if (!state.chats.length) {
+    state.activeChatId = null;
+    renderChats();
+    await createChat();
+    statusNode.textContent = "Создан новый пустой чат.";
+    return;
+  }
+
+  if (state.activeChatId === chatId) {
+    state.activeChatId = state.chats[0].id;
+  }
+
+  renderChats();
+  await loadChat(state.activeChatId);
+  statusNode.textContent = "Чат удален.";
+}
+
+async function pollChat(chatId) {
   const statusNode = document.getElementById("composer-status");
 
   while (true) {
-    await new Promise((resolve) => setTimeout(resolve, 1400));
-    const data = await fetchJson(`/api/requests/${requestId}`);
-    if (data.request.status === "completed") {
-      statusNode.textContent = "Ответ получен.";
-      await refreshChats(state.activeChatId);
-      await loadChat(state.activeChatId);
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    const chat = await loadChat(chatId);
+    await refreshChats(chatId);
+
+    const hasPendingMessage = chat.messages.some(
+      (message) => message.role === "assistant" && message.status === "pending",
+    );
+
+    if (!hasPendingMessage) {
+      const lastAssistant = [...chat.messages]
+        .reverse()
+        .find((message) => message.role === "assistant");
+      statusNode.textContent =
+        lastAssistant?.status === "error" ? "Сервис вернул ошибку." : "Ответ получен.";
       return;
     }
-    statusNode.textContent = "Ожидание ответа от сервиса б...";
+
+    statusNode.textContent = "Ожидание ответа от сервиса Б...";
   }
-}
-
-function connectWebSocket(requestId) {
-  return new Promise((resolve, reject) => {
-    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const socket = new WebSocket(`${protocol}//${window.location.host}/ws/requests/${requestId}`);
-
-    socket.addEventListener("open", () => {
-      socket.send("watch");
-    });
-
-    socket.addEventListener("message", async (event) => {
-      const data = JSON.parse(event.data);
-      const statusNode = document.getElementById("composer-status");
-      if (data.status === "completed") {
-        statusNode.textContent = "Ответ получен.";
-        await refreshChats(state.activeChatId);
-        await loadChat(state.activeChatId);
-        socket.close();
-        resolve();
-        return;
-      }
-      statusNode.textContent = "Ожидание ответа от сервиса б...";
-      socket.send("watch");
-    });
-
-    socket.addEventListener("error", () => {
-      socket.close();
-      reject(new Error("WebSocket unavailable"));
-    });
-
-    socket.addEventListener("close", (event) => {
-      if (!event.wasClean && event.code !== 1000) {
-        reject(new Error("WebSocket closed unexpectedly"));
-      }
-    });
-  });
 }
 
 async function sendMessage(event) {
@@ -179,11 +202,19 @@ async function sendMessage(event) {
     await createChat();
   }
 
+  if (!promptInput.value.trim()) {
+    statusNode.textContent = "Введите промпт.";
+    return;
+  }
+
+  if (!fileInput.files[0]) {
+    statusNode.textContent = "Прикрепите файл для отправки в сервис А.";
+    return;
+  }
+
   const formData = new FormData();
   formData.append("prompt", promptInput.value);
-  if (fileInput.files[0]) {
-    formData.append("file", fileInput.files[0]);
-  }
+  formData.append("file", fileInput.files[0]);
 
   sendButton.disabled = true;
   statusNode.textContent = "Отправка запроса...";
@@ -200,9 +231,10 @@ async function sendMessage(event) {
     fileInput.value = "";
     document.getElementById("file-name").textContent = "Файл не выбран";
 
-    await pollRequest(data.request.id);
+    await pollChat(state.activeChatId);
   } catch (error) {
     statusNode.textContent = error.message;
+    await loadChat(state.activeChatId);
   } finally {
     sendButton.disabled = false;
   }
@@ -242,4 +274,3 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 });
-

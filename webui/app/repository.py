@@ -1,12 +1,13 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-from .models import AuthSession, Chat, Message, PendingRequest, User, new_id
+from .models import AuthSession, Chat, Message, PendingRequest, ServiceResponse, User, new_id
 
 
 UTC = timezone.utc
+DEFAULT_CHAT_TITLE = "Новый чат"
 
 
 class InMemoryRepository:
@@ -25,8 +26,9 @@ class InMemoryRepository:
     def get_or_create_user(self, username: str) -> User:
         normalized = username.strip().lower()
         existing = self.users_by_name.get(normalized)
-        if existing:
+        if existing is not None:
             return existing
+
         display_name = username.strip() or "User"
         user = User(
             id=new_id("usr"),
@@ -41,9 +43,11 @@ class InMemoryRepository:
         access_token = new_id("atk")
         if refresh_token is None:
             refresh_token = new_id("rtk")
+
         refresh_expires = now + timedelta(days=self.refresh_days)
         access_expires = now + timedelta(minutes=self.access_minutes)
         self.refresh_tokens[refresh_token] = (user.id, refresh_expires)
+
         session = AuthSession(
             access_token=access_token,
             refresh_token=refresh_token,
@@ -67,16 +71,20 @@ class InMemoryRepository:
     def refresh_access_session(self, refresh_token: Optional[str]) -> Optional[AuthSession]:
         if not refresh_token:
             return None
+
         refresh_state = self.refresh_tokens.get(refresh_token)
         if refresh_state is None:
             return None
+
         user_id, expires_at = refresh_state
         if expires_at <= self._now():
             self.refresh_tokens.pop(refresh_token, None)
             return None
+
         user = next((item for item in self.users_by_name.values() if item.id == user_id), None)
         if user is None:
             return None
+
         session = self.create_session(user, refresh_token=refresh_token)
         session.refreshed = True
         return session
@@ -95,7 +103,7 @@ class InMemoryRepository:
         now = self._now()
         chat = Chat(
             user_id=user_id,
-            title=title or "Новый чат",
+            title=title or DEFAULT_CHAT_TITLE,
             created_at=now,
             updated_at=now,
         )
@@ -107,6 +115,21 @@ class InMemoryRepository:
         if chat is None or chat.user_id != user_id:
             return None
         return chat
+
+    def delete_chat(self, user_id: str, chat_id: str) -> bool:
+        chat = self.get_chat(user_id, chat_id)
+        if chat is None:
+            return False
+
+        self.chats.pop(chat_id, None)
+        request_ids = [
+            request_id
+            for request_id, request in self.requests.items()
+            if request.chat_id == chat_id
+        ]
+        for request_id in request_ids:
+            self.requests.pop(request_id, None)
+        return True
 
     def add_message(
         self,
@@ -122,6 +145,7 @@ class InMemoryRepository:
         chat = self.get_chat(user_id, chat_id)
         if chat is None:
             raise KeyError(f"Chat {chat_id} not found")
+
         message = Message(
             role=role,
             content=content,
@@ -130,8 +154,13 @@ class InMemoryRepository:
             status=status,
             meta=meta or {},
         )
+        should_derive_title = (
+            role == "user"
+            and chat.title == DEFAULT_CHAT_TITLE
+            and not any(existing.role == "user" for existing in chat.messages)
+        )
         chat.messages.append(message)
-        if role == "user" and len(chat.messages) == 1 and chat.title == "Новый чат":
+        if should_derive_title:
             chat.title = self._derive_chat_title(content, file_name)
         chat.updated_at = self._now()
         return message
@@ -140,15 +169,23 @@ class InMemoryRepository:
         if file_name:
             return file_name[:36]
         compact = " ".join(content.split())
-        return compact[:40] if compact else "Новый чат"
+        return compact[:40] if compact else DEFAULT_CHAT_TITLE
 
-    def create_request(self, user_id: str, chat_id: str, assistant_message_id: str) -> PendingRequest:
+    def create_request(
+        self,
+        user_id: str,
+        chat_id: str,
+        assistant_message_id: str,
+        *,
+        meta: Optional[dict] = None,
+    ) -> PendingRequest:
         pending = PendingRequest(
             user_id=user_id,
             chat_id=chat_id,
             assistant_message_id=assistant_message_id,
             status="processing",
             created_at=self._now(),
+            meta=meta or {},
         )
         self.requests[pending.id] = pending
         return pending
@@ -156,23 +193,69 @@ class InMemoryRepository:
     def get_request(self, request_id: str) -> Optional[PendingRequest]:
         return self.requests.get(request_id)
 
-    def complete_request(self, request_id: str, result: dict) -> PendingRequest:
+    def get_active_request(self, user_id: str, chat_id: str) -> Optional[PendingRequest]:
+        active = [
+            request
+            for request in self.requests.values()
+            if request.user_id == user_id
+            and request.chat_id == chat_id
+            and request.status in {"queued", "processing"}
+        ]
+        if not active:
+            return None
+        return max(active, key=lambda item: item.created_at)
+
+    def mark_request_forwarded(self, request_id: str, meta: dict) -> PendingRequest:
         request = self.requests[request_id]
-        request.status = "completed"
+        request.meta = {**request.meta, **meta}
+        request.status = "processing"
+        return request
+
+    def fail_request(self, request_id: str, error_text: str, *, meta: Optional[dict] = None) -> PendingRequest:
+        request = self.requests[request_id]
+        request.status = "failed"
         request.finished_at = self._now()
-        request.result = result
+        request.meta = {**request.meta, **(meta or {})}
+
         chat = self.chats[request.chat_id]
         for message in chat.messages:
             if message.id == request.assistant_message_id:
-                message.status = "done"
-                message.content = result["summary"]
+                message.status = "error"
+                message.content = error_text
                 message.meta = {
-                    "response_json": result,
-                    "source": "service_b",
+                    **request.meta,
+                    "error": error_text,
                 }
                 break
         chat.updated_at = self._now()
         return request
 
+    def apply_response(self, response: ServiceResponse) -> PendingRequest:
+        request = self.get_active_request(response.user_id, response.chat_id)
+        if request is None:
+            raise KeyError(
+                f"Active request for user {response.user_id} and chat {response.chat_id} not found"
+            )
 
+        if response.received_at is None:
+            response.received_at = self._now()
 
+        request.status = "completed" if response.success else "failed"
+        request.finished_at = self._now()
+        request.response = response
+
+        chat = self.chats[request.chat_id]
+        for message in chat.messages:
+            if message.id == request.assistant_message_id:
+                message.status = "done" if response.success else "error"
+                message.content = response.explanation or response.error or "Ответ получен."
+                message.meta = {
+                    **request.meta,
+                    "response_json": response.model_dump(mode="json"),
+                    "diagram": response.diagram,
+                    "attempt": response.attempt,
+                    "source": "service_b",
+                }
+                break
+        chat.updated_at = self._now()
+        return request
