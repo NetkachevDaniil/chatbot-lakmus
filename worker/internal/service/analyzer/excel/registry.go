@@ -1,6 +1,8 @@
-package analyzer
+package excel
 
-import "example.com/bot_worker/internal/service"
+import (
+	"example.com/bot_worker/internal/service"
+)
 
 type Registry struct {
 	analyzers map[string]service.Analyzer

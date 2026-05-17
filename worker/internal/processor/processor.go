@@ -3,7 +3,7 @@ package processor
 import (
 	"example.com/bot_worker/internal/llm"
 	"example.com/bot_worker/internal/parsing"
-	"example.com/bot_worker/internal/service/analyzer"
+	excelAnalyzer "example.com/bot_worker/internal/service/analyzer/excel"
 	"example.com/bot_worker/pkg/models"
 	"example.com/bot_worker/pkg/tools"
 	"fmt"
@@ -13,7 +13,7 @@ import (
 )
 
 type Processor struct {
-	analyzerRegistry *analyzer.Registry
+	analyzerRegistry *excelAnalyzer.Registry
 	llmIntent        *llm.IntentClient
 	llmVisualizer    *llm.VisualizeClient
 	llmWorkAround    *llm.WorkAroundClient
@@ -25,7 +25,7 @@ func NewProcessor(
 	llmVisualizer *llm.VisualizeClient,
 	llmWorkAround *llm.WorkAroundClient,
 ) *Processor {
-	registry := analyzer.NewRegistry()
+	registry := excelAnalyzer.NewRegistry()
 	return &Processor{
 		analyzerRegistry: registry,
 		llmIntent:        llmIntent,
@@ -55,12 +55,13 @@ func (p *Processor) Process(req *models.ProcessRequest) (*models.AIResponse, *mo
 	switch req.FileFormat {
 	case parsing.ExcelFormat, parsing.ExcelFormat2, parsing.ExcelFormat3:
 		return p.ExcelProcess(metrics, file, req)
-	}
 
-	metrics.LLMCalls++
-	metrics.EndTime = time.Now()
-	metrics.DurationMs = metrics.EndTime.Sub(metrics.StartTime).Milliseconds()
-	return nil, metrics, fmt.Errorf("unsupported file format: %s", req.FileFormat)
+	default:
+		metrics.LLMCalls++
+		metrics.EndTime = time.Now()
+		metrics.DurationMs = metrics.EndTime.Sub(metrics.StartTime).Milliseconds()
+		return nil, metrics, fmt.Errorf("unsupported file format: %s", req.FileFormat)
+	}
 }
 
 func (p *Processor) downloadFile(filePath string) ([]byte, error) {

@@ -60,9 +60,9 @@ func TestProcessWithKafka() {
 
 func TestLocalProcess() {
 	llmConfig := &llm.Config{
-		Endpoint: tools.GetEnv("LLM_ENDPOINT", "http://localhost:1234/v1/chat/completions"),
-		APIKey:   tools.GetEnv("API_KEY_OPEN_ROUTER", ""),
-		Model:    tools.GetEnv("LLM_MODEL", "llama-3.2-3b-instruct"),
+		Endpoint: tools.GetEnv("LLM_ENDPOINT", "https://openrouter.ai/api/v1/chat/completions"),
+		APIKey:   tools.GetEnv("API_KEY_OPEN_ROUTER", "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"),
+		Model:    tools.GetEnv("LLM_MODEL", "openai/gpt-3.5-turbo"),
 		Timeout:  5 * time.Minute,
 	}
 	llmClient := llm.NewClient(llmConfig)
@@ -74,8 +74,8 @@ func TestLocalProcess() {
 
 	req := &models.ProcessRequest{
 		FilePath:   "./nabeba.xlsx",
-		Prompt:     "",
-		FileFormat: "excel",
+		Prompt:     "кто как учится?",
+		FileFormat: "xlsx",
 	}
 
 	response, metrics, err := proc.Process(req)

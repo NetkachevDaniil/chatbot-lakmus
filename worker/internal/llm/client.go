@@ -55,6 +55,11 @@ func (c *Client) Chat(messages []map[string]string) (string, error) {
 		return "", err
 	}
 
+	if errorField, ok := result["error"].(map[string]interface{}); ok {
+		errorJSON, _ := json.Marshal(errorField)
+		return "", fmt.Errorf("API error: %s", string(errorJSON))
+	}
+
 	// TODO: распарсить ошибку еще надо (если будет), тут этого нет
 	choices, ok := result["choices"].([]interface{})
 	if !ok || len(choices) == 0 {
@@ -64,4 +69,18 @@ func (c *Client) Chat(messages []map[string]string) (string, error) {
 	message := choices[0].(map[string]interface{})["message"].(map[string]interface{})
 	content := message["content"].(string)
 	return content, nil
+}
+
+type OpenRouterResponse struct {
+	Error *struct {
+		Message string `json:"message"`
+		Type    string `json:"type"`
+		Param   string `json:"param"`
+		Code    string `json:"code"`
+	} `json:"error"`
+	Choices []struct {
+		Message struct {
+			Content string `json:"content"`
+		} `json:"message"`
+	} `json:"choices"`
 }
