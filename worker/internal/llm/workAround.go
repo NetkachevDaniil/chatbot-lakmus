@@ -28,7 +28,7 @@ func (a *WorkAroundClient) WorkAround(prompt, fileFormat string, file []byte) (*
 
 		messages := []map[string]string{
 			{"role": "system", "content": systemPrompt},
-			{"role": "user", "content": a.buildIntentPrompt(meta, prompt)},
+			{"role": "user", "content": a.buildExcelIntentPrompt(meta, prompt)},
 		}
 		response, err := a.client.Chat(messages)
 		if err != nil {
@@ -45,7 +45,7 @@ func (a *WorkAroundClient) WorkAround(prompt, fileFormat string, file []byte) (*
 	return nil, fmt.Errorf("format not supported")
 }
 
-func (a *WorkAroundClient) buildIntentPrompt(meta *models.ExcelMetadata, prompt string) string {
+func (a *WorkAroundClient) buildExcelIntentPrompt(meta *models.ExcelMetadata, prompt string) string {
 	sheetsInfo := ""
 	for _, sheet := range meta.Sheets {
 		sheetsInfo += fmt.Sprintf("\n- Лист '%s': %d строк, колонки: %v\n", sheet.Name, sheet.RowCount, sheet.Columns)

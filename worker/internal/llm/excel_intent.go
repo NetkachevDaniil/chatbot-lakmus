@@ -25,7 +25,7 @@ func (ic *IntentClient) GetIntent(meta *models.ExcelMetadata, prompt string) (*m
 	2. group_comparison - сравнение групп
    	Обязательные params: {"group_column": "название колонки для группировки", "value_column": "название колонки со значениями"}
 
-	3. top_bottom - лучшие/худшие студенты
+	3. top_bottom - лучшие/худшие
    	Обязательные params: {"name_column": "название колонки с именами", "value_column": "название колонки со значениями", "mode": "top|bottom"}
 
 	4. correlation - корреляция между колонками
