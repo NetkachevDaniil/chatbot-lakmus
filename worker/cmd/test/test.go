@@ -16,8 +16,8 @@ import (
 )
 
 func main() {
-	TestLocalProcess()
-	// TestProcessWithKafka()
+	//TestLocalProcess()
+	TestProcessWithKafka()
 }
 
 func TestProcessWithKafka() {

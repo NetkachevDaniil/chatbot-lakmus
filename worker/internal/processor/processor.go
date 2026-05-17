@@ -7,6 +7,7 @@ import (
 	"example.com/bot_worker/pkg/models"
 	"example.com/bot_worker/pkg/tools"
 	"fmt"
+	"log/slog"
 	"os"
 	"strings"
 	"time"
@@ -45,6 +46,7 @@ func (p *Processor) Process(req *models.ProcessRequest) (*models.AIResponse, *mo
 	// Скачиваем файл
 	file, err := p.downloadFile(req.FilePath)
 	if err != nil {
+		slog.Info("file download failed", "error", err.Error())
 		metrics.LLMCalls++
 		metrics.EndTime = time.Now()
 		metrics.DurationMs = metrics.EndTime.Sub(metrics.StartTime).Milliseconds()
@@ -72,7 +74,7 @@ func (p *Processor) downloadFile(filePath string) ([]byte, error) {
 		// Скачиваем файл из MinIO
 		data, err := tools.DownloadFile(filePath)
 		if err != nil {
-			return nil, fmt.Errorf("ошибка скачивания файла: %w", err)
+			return nil, fmt.Errorf("ошибка обработки файла на стороне сервераю. Повторите попытку позже")
 		}
 		return data, nil
 	}
