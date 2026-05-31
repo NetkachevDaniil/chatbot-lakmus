@@ -1,0 +1,21 @@
+app_name: service-b
+log_level: INFO
+
+server:
+  host: 0.0.0.0
+  port: 8000
+
+kafka:
+  bootstrap_servers: kafka:9092
+  response_topic: Response
+  request_topic: Request
+  consumer_group: service-b-consumer
+  client_id: service-b
+
+webui:
+  base_url: http://webui:8090
+  response_path_template: /user/{user_id}/chat/{chat_id}/response
+  timeout_seconds: 10
+
+postgres:
+  dsn: postgresql://service_b:service_b@postgres:5432/service_b
