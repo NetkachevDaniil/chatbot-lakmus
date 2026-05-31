@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block title %}Lakmus Login{% endblock %}
+{% block head %}
+<script defer src="{{ url_for('static', path='/js/auth.js') }}?v=lakmus-20260419-integration"></script>
+{% endblock %}
+
+{% block body_class %}auth-body{% endblock %}
+
+{% block body %}
+<main class="auth-layout">
+    <section class="auth-copy fade-in">
+        <a class="brand brand-lockup" href="/">
+            <span class="brand-mark">
+                <img src="{{ url_for('static', path='/img/lakmus-avatar.svg') }}?v=lakmus-20260406-fix3" alt="Lakmus" width="20" height="20">
+            </span>
+            <span class="brand-wordmark">Lakmus</span>
+        </a>
+        <p class="eyebrow">AUTH FLOW</p>
+        <h1>Вход в рабочую среду Лакмуса.</h1>
+        <p>При загрузке страницы frontend проверяет cookie через backend. Если access token устарел, сервис авторизации может выпустить новый. Если сессия невалидна, пользователь остается на странице входа.</p>
+        <div class="panel auth-note auth-note-accent">
+            <strong>Демо-режим</strong>
+            <p>Сейчас принимаются любые непустые <code>username</code> и <code>password</code>.</p>
+        </div>
+    </section>
+
+    <section class="panel auth-card auth-card-accent fade-in">
+        <div class="auth-card-head">
+            <span class="badge">secure entry</span>
+            <h2>Авторизация</h2>
+        </div>
+        <form id="login-form" class="auth-form">
+            <label>
+                Username
+                <input type="text" name="username" placeholder="analyst01" autocomplete="username" required>
+            </label>
+            <label>
+                Password
+                <input type="password" name="password" placeholder="Введите пароль" autocomplete="current-password" required>
+            </label>
+            <button class="button" type="submit">Войти</button>
+            <p id="login-message" class="form-message" aria-live="polite"></p>
+        </form>
+    </section>
+</main>
+{% endblock %}

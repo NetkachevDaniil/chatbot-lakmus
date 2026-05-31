@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+
+{% block title %}Lakmus Home{% endblock %}
+
+{% block body %}
+<header class="topbar">
+    <a class="brand brand-lockup" href="/">
+        <span class="brand-mark">
+            <img src="{{ url_for('static', path='/img/lakmus-avatar.svg') }}?v=lakmus-20260406-fix3" alt="Lakmus" width="20" height="20">
+        </span>
+        <span class="brand-wordmark">Lakmus</span>
+    </a>
+    <nav class="topbar-nav">
+        <a href="#capabilities">Возможности</a>
+        <a href="#flow">Схема работы</a>
+        {% if session %}
+        <a class="button button-ghost" href="/workspace">Открыть диалоги</a>
+        {% else %}
+        <a class="button button-ghost" href="/login">Войти</a>
+        {% endif %}
+    </nav>
+</header>
+
+<main class="landing">
+    <section class="hero fade-in">
+        <div class="hero-copy">
+            <p class="eyebrow">LAKMUS WEB UI</p>
+            <h1>Лакмус помогает работать с учебными файлами и запросами в одном аккуратном интерфейсе.</h1>
+            <p class="hero-text">Лендинг, авторизация, чат, история запросов и интеграция с сервисами А и Б собраны в одном web UI. Отдельно подключен VK-мост: запрос может прийти из VK, пройти через тот же контур и вернуться пользователю обратно в диалог.</p>
+            <div class="hero-actions">
+                {% if session %}
+                <a class="button" href="/workspace">Перейти к диалогам</a>
+                {% else %}
+                <a class="button" href="/login">Перейти к авторизации</a>
+                {% endif %}
+                <a class="button button-ghost" href="#flow">Как это работает</a>
+            </div>
+        </div>
+        <div class="hero-card panel hero-summary">
+            <span class="badge">Lakmus</span>
+            <h2>Интерфейс готов к интеграции с реальными сервисами.</h2>
+            <ul class="hero-points">
+                <li>Авторизация с проверкой cookie.</li>
+                <li>Отправка файла и промпта в сервис А.</li>
+                <li>Прием ответа от сервиса Б по отдельной response-ручке.</li>
+            </ul>
+        </div>
+    </section>
+
+    <section class="feature-grid" id="capabilities">
+        <article class="panel feature-card feature-card-accent fade-in">
+            <p class="feature-index">01</p>
+            <h2>Авторизация</h2>
+            <p>Восстановление сессии, обновление access token и возврат на вход при невалидной сессии.</p>
+        </article>
+        <article class="panel feature-card feature-card-secondary fade-in">
+            <p class="feature-index">02</p>
+            <h2>Диалоги</h2>
+            <p>Боковая история чатов, рабочее окно справа, прикрепление файла и отправка запроса.</p>
+        </article>
+        <article class="panel feature-card feature-card-accent fade-in">
+            <p class="feature-index">03</p>
+            <h2>Интеграция</h2>
+            <p>Frontend отправляет запрос в backend, backend пересылает его в сервис А, а ответ от сервиса Б приходит в отдельную response-ручку.</p>
+        </article>
+    </section>
+
+    <section class="panel flow-section fade-in" id="flow">
+        <div>
+            <p class="eyebrow">INTEGRATION READY</p>
+            <h2>Базовые точки интеграции уже зафиксированы в конфиге и готовы к подстановке в docker-compose.</h2>
+        </div>
+        <div class="service-grid">
+            <div>
+                <span class="service-label">Авторизация</span>
+                <p>{{ service_endpoints.auth }}</p>
+            </div>
+            <div>
+                <span class="service-label">Сервис A</span>
+                <p>{{ service_endpoints.service_a }}</p>
+            </div>
+            <div>
+                <span class="service-label">Web UI Response</span>
+                <p>{{ service_endpoints.web_ui }}</p>
+            </div>
+        </div>
+    </section>
+</main>
+{% endblock %}
