@@ -27,7 +27,7 @@ services:
       MINIO_SECURE: "false"
       FILE_TTL_HOURS: "4"
       KAFKA_REST_URL: http://kafka-rest:8082
-      KAFKA_TOPIC_REQUEST: Request
+      KAFKA_TOPIC_REQUEST: request
     ports:
       - "8089:8089"
     depends_on:
@@ -55,8 +55,8 @@ services:
     environment:
       APP_CONFIG_PATH: /app/config.yaml
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-      KAFKA_RESPONSE_TOPIC: Response
-      KAFKA_REQUEST_TOPIC: Request
+      KAFKA_RESPONSE_TOPIC: response
+      KAFKA_REQUEST_TOPIC: request
       POSTGRES_DSN: postgresql://service_b:service_b@postgres:5432/service_b
       WEBUI_BASE_URL: http://webui:8090
     ports:
@@ -100,7 +100,7 @@ services:
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
-      KAFKA_CREATE_TOPICS: "Request,Response"
+      KAFKA_CREATE_TOPICS: "request,response"
     healthcheck:
       test: ["CMD-SHELL", "kafka-topics --bootstrap-server localhost:9092 --list > /dev/null 2>&1"]
       interval: 10s
@@ -167,6 +167,33 @@ services:
     networks:
       - lakmus-net
 
+  adminer:
+    image: adminer:latest
+    container_name: adminer
+    restart: unless-stopped
+    environment:
+      ADMINER_DEFAULT_SERVER: postgres
+      ADMINER_DESIGN: pepa-linha
+    ports:
+      - "9990:8080"
+    networks:
+      - lakmus-net
+    depends_on:
+      - postgres
+
+  portainer:
+    image: portainer/portainer-ce:latest
+    container_name: portainer
+    restart: unless-stopped
+    command: -H unix:///var/run/docker.sock
+    ports:
+      - "9991:9000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - portainer_data:/data
+    networks:
+      - lakmus-net
+      
 volumes:
   postgres_data:
   minio_data:
