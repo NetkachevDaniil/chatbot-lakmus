@@ -1,19 +1,44 @@
 services:
   webui:
     build:
-      context: .
-    env_file:
-      - ./.env
+      context: ./webui
     environment:
       WEBUI_APP_NAME: Lakmus
-      WEBUI_AUTH_URL: http://auth-service.local
+      WEBUI_AUTH_URL: http://auth:8000
       WEBUI_SERVICE_A_URL: http://service-a:8089
       WEBUI_BASE_URL: http://localhost:8090
     ports:
       - "8090:8090"
     depends_on:
+      auth:
+        condition: service_healthy
       service-a:
         condition: service_started
+    networks:
+      - lakmus-net
+
+  auth:
+    build:
+      context: ./auth
+      dockerfile: Dockerfile
+    environment:
+      SECRET_KEY: change-me-in-compose
+      DATABASE_URL: postgresql://auth:auth@auth-postgres:5432/auth
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_AUTH_TOPIC: auth.events
+      SERVICE_NAME: auth-service
+    ports:
+      - "8001:8000"
+    depends_on:
+      kafka:
+        condition: service_healthy
+      auth-postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=5)\""]
+      interval: 10s
+      timeout: 5s
+      retries: 10
     networks:
       - lakmus-net
 
@@ -100,7 +125,7 @@ services:
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
-      KAFKA_CREATE_TOPICS: "request,response"
+      KAFKA_CREATE_TOPICS: "request,response,auth.events"
     healthcheck:
       test: ["CMD-SHELL", "kafka-topics --bootstrap-server localhost:9092 --list > /dev/null 2>&1"]
       interval: 10s
@@ -153,6 +178,24 @@ services:
     networks:
       - lakmus-net
 
+  auth-postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: auth
+      POSTGRES_USER: auth
+      POSTGRES_PASSWORD: auth
+    ports:
+      - "5433:5432"
+    volumes:
+      - auth_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U auth -d auth"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - lakmus-net
+
   minio:
     image: minio/minio:RELEASE.2024-07-16T23-46-41Z
     environment:
@@ -196,7 +239,9 @@ services:
       
 volumes:
   postgres_data:
+  auth_postgres_data:
   minio_data:
+  portainer_data:
 
 networks:
   lakmus-net:

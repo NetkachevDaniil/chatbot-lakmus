@@ -4,7 +4,7 @@ import jwt
 from fastapi import HTTPException, status
 from passlib.context import CryptContext
 
-from auth.config import get_settings
+from app.config import get_settings
 
 
 pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")

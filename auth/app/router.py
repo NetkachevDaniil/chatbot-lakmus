@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
-from auth.schemas import (
+from app.schemas import (
     AuthResponse,
     LoginRequest,
     LogoutRequest,
@@ -9,7 +9,7 @@ from auth.schemas import (
     RegisterRequest,
     UserResponse,
 )
-from auth.service import AuthService
+from app.service import AuthService
 
 
 router = APIRouter(prefix="/auth", tags=["Auth"])

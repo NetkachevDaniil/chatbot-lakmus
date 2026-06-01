@@ -24,7 +24,7 @@ async function handleLogin(event) {
       headers: { "Content-Type": "application/json" },
       credentials: "same-origin",
       body: JSON.stringify({
-        username: formData.get("username"),
+        email: formData.get("email"),
         password: formData.get("password"),
       }),
     });

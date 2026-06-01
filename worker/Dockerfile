@@ -19,5 +19,5 @@ RUN apk --no-cache add ca-certificates
 
 COPY --from=builder /app/bin/worker /app/worker
 
-COPY --from=builder /app/config.yaml /app/config.yaml
+COPY --from=builder /app/config_example.yaml /app/config.yaml
 CMD ["/app/worker"]

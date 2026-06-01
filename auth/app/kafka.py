@@ -5,7 +5,7 @@ import logging
 from datetime import datetime, timezone
 from typing import Any
 
-from auth.config import Settings
+from app.config import Settings
 
 try:
     from aiokafka import AIOKafkaProducer
@@ -14,8 +14,6 @@ except ImportError:  # pragma: no cover
 
 
 logger = logging.getLogger(__name__)
-
-#Если я правильно понял что у нас это отдельный микросервис, то он будет в кафку слать данные, слушать ему ничего не надо
 
 class AuthEventProducer:
     def __init__(self, settings: Settings):

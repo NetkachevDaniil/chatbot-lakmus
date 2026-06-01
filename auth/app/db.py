@@ -1,6 +1,6 @@
 import asyncpg
 
-from auth.config import Settings
+from app.config import Settings
 
 
 CREATE_USERS_TABLE = """

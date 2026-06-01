@@ -18,10 +18,10 @@
         </a>
         <p class="eyebrow">AUTH FLOW</p>
         <h1>Вход в рабочую среду Лакмуса.</h1>
-        <p>При загрузке страницы frontend проверяет cookie через backend. Если access token устарел, сервис авторизации может выпустить новый. Если сессия невалидна, пользователь остается на странице входа.</p>
+        <p>При загрузке страницы frontend проверяет cookie через backend. Если access token устарел, сервис авторизации выпускает новый. Если сессия невалидна, пользователь остается на странице входа.</p>
         <div class="panel auth-note auth-note-accent">
-            <strong>Демо-режим</strong>
-            <p>Сейчас принимаются любые непустые <code>username</code> и <code>password</code>.</p>
+            <strong>Auth service</strong>
+            <p>Вход проверяется через отдельный сервис авторизации и его PostgreSQL.</p>
         </div>
     </section>
 
@@ -32,8 +32,8 @@
         </div>
         <form id="login-form" class="auth-form">
             <label>
-                Username
-                <input type="text" name="username" placeholder="analyst01" autocomplete="username" required>
+                Email
+                <input type="email" name="email" placeholder="student@example.com" autocomplete="username" required>
             </label>
             <label>
                 Password

@@ -3,11 +3,11 @@ from contextlib import asynccontextmanager
 import uvicorn
 from fastapi import FastAPI
 
-from auth.config import get_settings
-from auth.db import create_pool, init_db
-from auth.kafka import AuthEventProducer
-from auth.router import router as auth_router
-from auth.service import AuthService
+from app.config import get_settings
+from app.db import create_pool, init_db
+from app.kafka import AuthEventProducer
+from app.router import router as auth_router
+from app.service import AuthService
 
 
 @asynccontextmanager

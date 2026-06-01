@@ -14,7 +14,7 @@ from starlette.datastructures import Headers, UploadFile as StarletteUploadFile
 from .config import get_settings
 from .models import ServiceResponse, VkInboundPayload
 from .repository import InMemoryRepository
-from .services.auth import MockAuthService, ServiceEndpoints
+from .services.auth import HttpAuthService, ServiceEndpoints
 from .services.chat import MockChatService
 from .services.vk_bot import DEFAULT_VK_PROMPT
 from .services.vk_bridge import VkBridgeService
@@ -32,7 +32,7 @@ service_endpoints = ServiceEndpoints(
     service_a=settings.service_a_base_url,
     web_ui=settings.web_ui_base_url,
 )
-auth_service = MockAuthService(repository, service_endpoints)
+auth_service = HttpAuthService(service_endpoints, settings.access_token_minutes)
 chat_service = MockChatService(repository, service_endpoints)
 vk_bridge = VkBridgeService(settings)
 
@@ -223,11 +223,11 @@ async def auth_status(request: Request):
 @app.post("/api/auth/login")
 async def login_api(request: Request):
     payload = await request.json()
-    username = payload.get("username", "")
+    username = payload.get("email", payload.get("username", ""))
     password = payload.get("password", "")
     session = await auth_service.login(username, password)
     if session is None:
-        raise HTTPException(status_code=400, detail="Введите username и password")
+        raise HTTPException(status_code=400, detail="Введите email и password")
 
     response = JSONResponse(
         {

@@ -4,10 +4,10 @@ from uuid import UUID, uuid4
 import asyncpg
 from fastapi import HTTPException, status
 
-from auth.db import record_to_dict
-from auth.kafka import AuthEventProducer
-from auth.schemas import LoginRequest, RegisterRequest
-from auth.utils import (
+from app.db import record_to_dict
+from app.kafka import AuthEventProducer
+from app.schemas import LoginRequest, RegisterRequest
+from app.utils import (
     create_access_token,
     create_refresh_token,
     decode_token,
